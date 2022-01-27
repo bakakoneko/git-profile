@@ -21,17 +21,30 @@ function fatal
   exit 1
 end
 
-function set_profile_dir
+function set_config_dir
   if set -q XDG_CONFIG_DIR
-    set -g profile_dir "$XDG_CONFIG_DIR/git_profile/profiles"
+    set -g config_dir "$XDG_CONFIG_DIR/git_profile"
   else
-    set -g profile_dir "$HOME/.config/git_profile/profiles"
+    set -g config_dir "$HOME/.config/git_profile"
   end
+end
+
+function set_profile_dir
+  set_config_dir
+  set -g profile_dir "$config_dir/profiles"
 end
 
 function list_profiles
   for f in "$profile_dir"/*
     echo (string replace "$profile_dir/" "" "$f")
+  end
+end
+
+function require_arg
+  if test (count $argv) -ne 1
+    fatal "Expected 1 argument but got %d" (count $argv)
+  else if test -z $argv[1]
+    fatal "Profile cannot be an empty string"
   end
 end
 
@@ -52,10 +65,25 @@ function remove_profile
   end
 end
 
+function read_current_profile
+  set -g current_profile (cat $argv[1] 2> /dev/null); or return $status
+end
+
+function get_local_profile
+  set -l root (git rev-parse --show-toplevel 2> /dev/null)
+  or return $status
+  echo "$root/.git/current_profile"
+end
+
+function get_global_profile
+  echo "$config_dir/current_profile"
+end
+
 function switch_profile
   set -l file "$profile_dir"/$argv[1]
   if test -e "$file"
     cat "$file" > "$git_config_file"
+    printf $argv[1] > "$current_profile_path"
     return $status
   else
     echo 'Profile "'$argv[1]'" does not exist'
@@ -73,10 +101,8 @@ end
 
 if set -q _flag_global
   get_global_config; or fatal 'Failed to locate global Git configuration'
-else if set -q _flag_local
-  get_local_config; or fatal 'Failed to locate local Git configuration'
 else
-  get_git_config; or fatal 'Failed to locate Git configuration'
+  get_local_config; or fatal 'Not in git directory'
 end
 
 if set -q _flag_dir
@@ -92,20 +118,28 @@ if set -q _flag_list
   exit
 end
 
-if test (count $argv) -ne 1
-  fatal "Expected 1 argument but got %d" (count $argv)
-else if test -z $argv[1]
-  fatal "Profile cannot be an empty string"
-end
-
 if set -q _flag_save
+  require_arg $argv
   save_profile $argv[1]; or fatal 'Failed to save profile "%s"' $argv[1]
   exit
 end
 
 if set -q _flag_remove
-  remove_profile $argv[1]; or fatal 'Failed to remove profile "'$argv[1]'"'
+  require_arg $argv
+  remove_profile $argv[1]; or fatal 'Failed to remove profile "%s"' argv[1]
   exit
 end
 
-switch_profile $argv[1]; or fatal 'Failed to switch to profile "'$argv[1]'"'
+if set -q _flag_global
+  set current_profile_path (get_global_profile)
+else
+  set current_profile_path (get_local_profile); or fatal 'Not in Git directory'
+end
+
+if test (count $argv) -eq 0
+  read_current_profile "$current_profile_path"; or fatal 'Current profile is not set'
+  echo $current_profile
+  exit
+end
+
+switch_profile $argv[1]; or fatal 'Failed to switch to profile "%s"' argv[1]
