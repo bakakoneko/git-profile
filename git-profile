@@ -1,10 +1,18 @@
 #!/usr/bin/env fish
 
 # Functions {{{
+function get_local_config
+  set -g git_config_file (EDITOR=echo git config --local -e 2> /dev/null)
+  return $status
+end
+
+function get_global_config
+  set -g git_config_file (EDITOR=echo git config --global -e 2> /dev/null)
+  return $status
+end
+
 function get_git_config
-  set -lx EDITOR echo
-  set -g git_config_file (git config -e 2> /dev/null)
-  or set -g git_config_file (git config --global -e 2> /dev/null)
+  get_local_config; or get_global_config
   return $status
 end
 
@@ -56,13 +64,19 @@ function switch_profile
 end
 # }}}
 
-argparse 'h/help' 'd/dir=' 'l/list' 's/save' 'r/remove' -- $argv
-
-get_git_config; or fatal "Could not locate git config"
+argparse 'h/help' 'd/dir=' 'l/list' 's/save' 'r/remove' 'global' 'local' -- $argv
 
 if set -q _flag_help
   echo "Help"
   exit
+end
+
+if set -q _flag_global
+  get_global_config; or fatal 'Failed to locate global Git configuration'
+else if set -q _flag_local
+  get_local_config; or fatal 'Failed to locate local Git configuration'
+else
+  get_git_config; or fatal 'Failed to locate Git configuration'
 end
 
 if set -q _flag_dir
