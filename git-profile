@@ -1,0 +1,97 @@
+#!/usr/bin/env fish
+
+# Functions {{{
+function get_git_config
+  set -lx EDITOR echo
+  set -g git_config_file (git config -e 2> /dev/null)
+  or set -g git_config_file (git config --global -e 2> /dev/null)
+  return $status
+end
+
+function fatal
+  printf $argv[1]"\n" $argv[2..] >&2
+  exit 1
+end
+
+function set_profile_dir
+  if set -q XDG_CONFIG_DIR
+    set -g profile_dir "$XDG_CONFIG_DIR/git_profile/profiles"
+  else
+    set -g profile_dir "$HOME/.config/git_profile/profiles"
+  end
+end
+
+function list_profiles
+  for f in "$profile_dir"/*
+    echo (string replace "$profile_dir/" "" "$f")
+  end
+end
+
+function save_profile
+  set -l dst "$profile_dir/"$argv[1]
+  cat "$git_config_file" > $dst
+  echo 'Saved profile as "'$argv[1]'"'
+end
+
+function remove_profile
+  set -l file "$profile_dir/"$argv[1]
+  if test -e "$file"
+    rm "$file"; or exit $status
+    echo 'Removed profile "'$argv[1]'"'
+  else
+    echo 'Profile "'$argv[1]'" does not exist'
+    exit 1
+  end
+end
+
+function switch_profile
+  set -l file "$profile_dir"/$argv[1]
+  if test -e "$file"
+    cat "$file" > "$git_config_file"
+    return $status
+  else
+    echo 'Profile "'$argv[1]'" does not exist'
+    exit 1
+  end
+end
+# }}}
+
+argparse 'h/help' 'd/dir=' 'l/list' 's/save' 'r/remove' -- $argv
+
+get_git_config; or fatal "Could not locate git config"
+
+if set -q _flag_help
+  echo "Help"
+  exit
+end
+
+if set -q _flag_dir
+  set profile_dir "$_flag_dir"
+else
+  set_profile_dir
+end
+
+mkdir -p "$profile_dir"; or fatal "Could not create profile directory"
+
+if set -q _flag_list
+  list_profiles
+  exit
+end
+
+if test (count $argv) -ne 1
+  fatal "Expected 1 argument but got %d" (count $argv)
+else if test -z $argv[1]
+  fatal "Profile cannot be an empty string"
+end
+
+if set -q _flag_save
+  save_profile $argv[1]; or fatal 'Failed to save profile "%s"' $argv[1]
+  exit
+end
+
+if set -q _flag_remove
+  remove_profile $argv[1]; or fatal 'Failed to remove profile "'$argv[1]'"'
+  exit
+end
+
+switch_profile $argv[1]; or fatal 'Failed to switch to profile "'$argv[1]'"'
