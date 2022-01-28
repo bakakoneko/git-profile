@@ -1,6 +1,12 @@
 #!/usr/bin/env fish
 
+set git_profile_version '1.0.0'
+
 # Functions {{{
+function usage
+  man git-profile
+end
+
 function get_local_config
   set -g git_config_file (EDITOR=echo git config --local -e 2> /dev/null)
   return $status
@@ -92,10 +98,15 @@ function switch_profile
 end
 # }}}
 
-argparse 'h/help' 'd/dir=' 'l/list' 's/save' 'r/remove' 'global' 'local' -- $argv
+argparse 'h/help' 'v/version' 'd/dir=' 'l/list' 's/save' 'r/remove' 'global' 'local' -- $argv
 
 if set -q _flag_help
-  echo "Help"
+  usage
+  exit
+end
+
+if set -q _flag_version
+  printf '%s %s\n' (basename (status -f)) $git_profile_version
   exit
 end
 
