@@ -116,7 +116,9 @@ else
   get_local_config; or fatal 'Not in git directory'
 end
 
-if set -q _flag_dir
+if set -q GIT_PROFILE_DIR
+  set profile_dir "$GIT_PROFILE_DIR"
+else if set -q _flag_dir
   set profile_dir "$_flag_dir"
 else
   set_profile_dir
