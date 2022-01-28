@@ -1,12 +1,3 @@
----
-title: GIT-PROFILE
-section: 1
-header: Git Extensions
-footer: git-profile 1.0.0
-date: January 2022
-author: BakaKoneko
----
-
 # NAME
 git-profile - manage local and global git configurations
 
