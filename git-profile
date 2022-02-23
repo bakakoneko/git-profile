@@ -1,6 +1,6 @@
 #!/usr/bin/env fish
 
-set git_profile_version '1.0.0'
+set git_profile_version '1.1.0'
 
 # Functions {{{
 function usage
@@ -72,7 +72,11 @@ function remove_profile
 end
 
 function read_current_profile
-  set -g current_profile (cat $argv[1] 2> /dev/null); or return $status
+  if test -e $argv[1]
+    set -g current_profile (basename (realpath $argv[1])); or return $status
+  else
+    return 1
+  end
 end
 
 function get_local_profile
@@ -85,11 +89,20 @@ function get_global_profile
   echo "$config_dir/current_profile"
 end
 
+function write_config
+  set -l config_marker "# Added by git-profile"
+  string match "*$config_marker*" (cat "$git_config_file") > /dev/null
+  set -l config_has_marker $status 
+  if test ! -e "$current_profile_path" -a ! $config_has_marker -eq 0
+    printf '\n%s\n[include]\n  path = %s\n' $config_marker $current_profile_path >> "$git_config_file"
+  end
+end
+
 function switch_profile
   set -l file "$profile_dir"/$argv[1]
   if test -e "$file"
-    cat "$file" > "$git_config_file"
-    printf $argv[1] > "$current_profile_path"
+    write_config
+    ln -sf "$file" "$current_profile_path"; or fatal 'Failed to create profile link'
     return $status
   else
     echo 'Profile "'$argv[1]'" does not exist'
