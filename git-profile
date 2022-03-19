@@ -95,7 +95,7 @@ function write_config
   set -l config_has_marker $status
   # FIXME: requires GNU coreutils version of realpath for --relative-to
   set -l relative_profile_path (realpath -s --relative-to=(dirname "$git_config_file") "$current_profile_path")
-  if test ! -e "$current_profile_path" -a ! $config_has_marker -eq 0
+  if ! test $config_has_marker -eq 0
     printf '%s\n[include]\n  path = %s\n' $config_marker $relative_profile_path >> "$git_config_file"
   end
 end
